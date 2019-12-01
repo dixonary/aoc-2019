@@ -1,0 +1,108 @@
+#!/bin/bash
+
+DAY=$1
+YEAR=2019
+
+
+# Skip if downloaded input already
+if [[ -f "$DAY/input" ]]
+then
+    echo "!! Already set up (input file already exists for day $DAY)."
+    exit
+fi
+
+echo "Contacting server to get input..."
+
+# Input failure modes
+INPUT=`curl -s --cookie "session=$AOC_SESSION" "https://adventofcode.com/$YEAR/day/$DAY/input"`
+
+if [[ "$INPUT" =~ "Please log in" ]]
+then
+    echo "!! Your session token is invalid, epxired, or not present."
+    echo "!! After logging in with a browser, set the AOC_SESSION variable in your environment to your session cookie."
+    exit
+fi
+
+if [[ "$INPUT" =~ "Please don't repeatedly" ]]
+then
+    echo "!! This day's content has not been released yet."
+    echo "!! DO NOT keep pinging this endpoint - wait until the time is clear."
+    exit
+fi
+
+echo "Creating directory..."
+mkdir $DAY
+cd $DAY
+
+echo "Saving input... " 
+echo "$INPUT" > input 
+
+echo "Writing default skeleton..."
+cat > Solution.hs <<FIN
+-- Control flow
+import Control.Monad
+import Data.Function ((&), on)
+import Data.Functor ((<&>))
+import System.Environment
+import System.IO.Unsafe
+
+-- Data Structures
+import qualified Data.List as List
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Maybe
+import Data.Bool
+
+
+--------------------------------------------------------------------------------
+-- IO Wrangling
+
+-- The initial data structure to parse the data into.
+type Input = String
+-- The final data structure to write the data out to.
+type Output = String
+
+parseInput :: String -> Input
+parseInput inputRaw = inputRaw
+
+
+--------------------------------------------------------------------------------
+-- Solution
+
+solA :: Input -> Output
+solA input = let
+        x = undefined
+    in undefined
+
+
+solB :: Input -> Output
+solB input = let
+        x = undefined
+    in undefined
+
+
+--------------------------------------------------------------------------------
+-- Scaffold
+main :: IO ()
+main = do
+    inputRaw <- readFile "input"
+    let input = parseInput inputRaw
+
+    when (read (unsafePerformIO (getEnv "DO_A")) == 1) $ do
+        putStrLn "PART A:"
+        print $ solA input
+        putStrLn ""
+
+    when (read (unsafePerformIO (getEnv "DO_B")) == 1) $ do
+        putStrLn "PART B:"
+        print $ solB input
+        putStrLn ""
+
+FIN
+
+# use xdg-open or $EDITOR for Linux; open for OSX
+open Solution.hs
+
+echo "...Done."

@@ -1,0 +1,27 @@
+#!/bin/bash
+
+DAY=$1
+SOLFILE="$DAY/Solution.hs"
+
+if ! [[ "$DAY" =~ ^[0-9]*$ ]]
+then
+    echo "!! Usage: run DAY [A|B]"
+    exit
+fi
+
+if ! [[ -f "$SOLFILE" ]]
+then
+    echo "!! '$SOLFILE' not found. Have you set up day $DAY yet?"
+    exit
+fi
+
+
+DO_A=1; 
+DO_B=1;
+
+if [[ "$2" =~ "A" ]]; then DO_B=0; fi
+if [[ "$2" =~ "B" ]]; then DO_A=0; fi
+
+cd $DAY
+DO_A=$DO_A DO_B=$DO_B runhaskell Solution.hs
+cd - > /dev/null
