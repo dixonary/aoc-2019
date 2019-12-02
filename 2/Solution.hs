@@ -27,26 +27,27 @@ import Debug.Trace
 -- IO Wrangling
 
 -- The initial data structure to parse the data into.
-type Input = [Int]
+type Input = Vector Int
 -- The final data structure to write the data out to.
 type Output = Int
 
 parseInput :: String -> Input
-parseInput = fmap read . splitOn ","
+parseInput = Vector.fromList . fmap read . splitOn ","
 
 
 --------------------------------------------------------------------------------
 -- Solution
 
 solA :: Input -> Output
-solA input = replaceRun 12 02 $ Vector.fromList input
+solA = replaceRun 12 02
 
 solB :: Input -> Output
-solB input = let
-    vec = Vector.fromList input
-    (noun,verb) = head 
-        [ (n,v) | n <- [0..100], v <- [0..100], replaceRun n v vec == 19690720]
-    in 100 * noun + verb
+solB vec = head
+    [ 100 * n + v 
+    | n <- [0..100]
+    , v <- [0..100]
+    , replaceRun n v vec == 19690720
+    ]
 
 
 replaceRun :: Int -> Int -> Vector Int -> Int
@@ -56,7 +57,7 @@ replaceRun noun verb
     >>> eval 0 
     >>> Vector.head
 
-    
+
 -- Dereference pointer
 infixl 5 #!
 v #! i = v ! (v ! i)
