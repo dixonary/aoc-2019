@@ -21,8 +21,6 @@ import Data.List.Split -- from split
 
 import Control.Arrow ((>>>))
 
-import Debug.Trace
-
 --------------------------------------------------------------------------------
 -- IO Wrangling
 
