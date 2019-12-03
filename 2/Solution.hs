@@ -122,6 +122,7 @@ replaceRun noun verb = do
 eval :: State Program Int
 eval = fromJust <$> iterateUntil isJust (step day2Machine)
 
+
 --------------------------------------------------------------------------------
 -- Solution
 
