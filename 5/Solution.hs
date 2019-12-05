@@ -42,7 +42,7 @@ data Program = Program
     , output  :: [Int]
     , mem     :: Vector Int
     }
-instance Show Program where show = show . mem
+instance Show Program where show p = show (output p, mem p)
 
 -- Read data into a program.
 parseInput :: String -> Input
@@ -63,6 +63,10 @@ day5Machine = Map.fromList
     , (2 , binop (*))
     , (3 , takeInput)
     , (4 , writeOutput)
+    , (5 , jumpIf (/= 0))
+    , (6 , jumpIf (== 0))
+    , (7 , binop (\a b -> if a <  b then 1 else 0))
+    , (8 , binop (\a b -> if a == b then 1 else 0))
     , (99, terminate)
     ]
 
@@ -70,41 +74,33 @@ day5Machine = Map.fromList
 --  which optionally ends the program with a return code.
 type Operation = State Program (Maybe Int)
 
+
+--------------------------------------------------------------------------------
+-- Intcode Utilities
+
 -- Move the instruction pointer by some amount.
 advancePointer :: Int -> State Program ()
 advancePointer n = modify $ \p@Program{..} -> p { ip = ip + n }
 
+-- Set the pointer to a specific value.
+setPointer :: Int -> State Program ()
+setPointer n = modify $ \p@Program{..} -> p { ip = n }
+
 -- Get the memory value at some address.
 getAt :: Int -> State Program Int
-getAt ix = do
-    m <- gets mem 
-    case m Vector.!? ix of
-        Just v -> return v
-        Nothing -> do
-            ip <- getIp
-            error $ show ix 
-                ++ " is out of range!\n"
-                ++ "Thrown from instruction at position " 
-                ++ show ip
-
--- Get the memory value pointed to by a pointer stored at some address.
-getAtP :: Int -> State Program Int
-getAtP = getAt >=> getAt
-
--- Set the memory value at some address.
-setAt :: Int -> Int -> State Program ()
-setAt ptr val = modify $ \p@Program{..} -> p { mem = mem Vector.// [(ptr, val)] }
+getAt ix = gets mem <&> (! ix)
 
 -- Get the current value of the instruction pointer.
 getIp :: State Program Int
 getIp = gets ip
 
-data Mode     = Position | Immediate
-    deriving (Eq, Show)
+-- Get the current instruction to run.
+getOpCode :: State Program Int
+getOpCode = getIp >>= getAt <&> (`mod` 100)
 
--- Get the mode for a parameter.
-getMode :: Int -> State Program Mode
-getMode i = do
+-- Get a numbered parameter which may or may not be immediate.
+getParam :: Int -> State Program Int
+getParam i = do
     modes <- (getIp >>= getAt)
             <&> ( show
                 >>> reverse
@@ -113,87 +109,22 @@ getMode i = do
                 )
 
     case listToMaybe $ drop (i-1) modes of
-        Just 1 -> return Immediate
-        _      -> return Position
+        Just 1 -> getParamImmediate i
+        _      -> getParamPosition  i
+
+-- Set the memory value at some address (direct or indirect)
+getParamImmediate :: Int -> State Program Int
+getParamImmediate i = getIp >>= ((+ i) >>> getAt)
+getParamPosition  :: Int -> State Program Int
+getParamPosition  i = getIp >>= ((+ i) >>> getAt) >>= getAt
+
+-- Set the memory value at some address.
+setAt :: Int -> Int -> State Program ()
+setAt ptr val = modify $ \p@Program{..} -> p { mem = mem Vector.// [(ptr, val)] }
 
 
--- Get a numbered parameter.
-getParam :: Int -> State Program Int
-getParam i = do
-    ptr    <- getIp
-    mode   <- getMode i
-    case mode of
-        Immediate -> getAt  $ ptr + i
-        Position  -> getAtP $ ptr + i
-
-
--- A binary operation reads from the next two values,
--- applies an operation, stores the value in the third, 
--- and moves the instruction pointer forward four places.
-binop :: (Int -> Int -> Int) -> Operation
-binop op = do
-    ptr <- getIp
-    x   <- getParam 1
-    y   <- getParam 2
-    loc <- getAt $ ptr + 3
-    setAt loc $ x `op` y
-    advancePointer 4
-    return Nothing
-
-
--- The return value is the first value in memory.
-terminate :: Operation
-terminate = gets (Just . Vector.head . mem)
-
-
-takeInput :: Operation
-takeInput = do
-    i   <- popInput
-    ptr <- getIp
-    p   <- getAt $ ptr + 1
-    setAt p i
-    advancePointer 2
-    return Nothing
-
-
-writeOutput :: Operation
-writeOutput = do
-    ptr <- getIp
-    val <- getAt $ ptr + 1
-    
-    pushOutput val
-
-    advancePointer 2
-    return Nothing
-
-
--- Get the current instruction to run.
-getOpCode :: State Program Int
-getOpCode = do
-    ptr  <- gets ip 
-    ival <- getAt ptr 
-    return $ ival `mod` 100
-
-
--- Finds the next operation according to the rules of some machine.
-step :: Operation
-step = do
-    machine     <- getMachine
-    opcode      <- getOpCode
-    fromMaybe (error $ "Invalid opcode: " ++ show opcode) 
-        $ machine !? opcode
-
-
--- Set the noun and verb and then evaluate.
-replaceRun :: Int -> Int -> State Program Int
-replaceRun noun verb = do
-    setAt 1 noun 
-    setAt 2 verb 
-    eval
-
--- Run program until a return code (terminate) is hit.
-eval :: State Program Int
-eval = fromJust <$> iterateUntil isJust step
+--------------------------------------------------------------------------------
+-- I/O
 
 popInput :: State Program Int
 popInput = do
@@ -209,6 +140,71 @@ pushOutput i = do
     o <- gets output
     modify $ \p -> p { output = o ++ [i] }
 
+
+--------------------------------------------------------------------------------
+-- Operations
+
+-- A binary operation reads from the next two values,
+-- applies an operation, stores the value in the third, 
+-- and moves the instruction pointer forward four places.
+binop :: (Int -> Int -> Int) -> Operation
+binop op = do
+    x   <- getParam 1
+    y   <- getParam 2
+    loc <- getParamImmediate 3
+    setAt loc $ x `op` y
+    advancePointer 4
+    return Nothing
+
+jumpIf :: (Int -> Bool) -> Operation
+jumpIf pred = do
+    x <- getParam 1
+    y <- getParam 2
+    if pred x 
+        then setPointer y
+        else advancePointer 3
+    return Nothing
+
+
+-- The return value is the first value in memory.
+terminate :: Operation
+terminate = gets (Just . Vector.head . mem)
+
+
+takeInput :: Operation
+takeInput = do
+    i   <- popInput
+    p   <- getParamImmediate 1
+    setAt p i
+    advancePointer 2
+    return Nothing
+
+
+writeOutput :: Operation
+writeOutput = do
+    val <- getParam 1
+    pushOutput val
+    advancePointer 2
+    return Nothing
+
+
+--------------------------------------------------------------------------------
+-- Evaluation
+
+
+-- Finds the next operation according to the rules of some machine.
+step :: Operation
+step = do
+    machine     <- getMachine
+    opcode      <- getOpCode
+    fromMaybe (error $ "Invalid opcode: " ++ show opcode) 
+        $ machine !? opcode
+
+-- Run program until a return code (terminate) is hit.
+eval :: State Program Int
+eval = fromJust <$> iterateUntil isJust step
+
+
 --------------------------------------------------------------------------------
 -- Solution
 
@@ -220,7 +216,11 @@ solA program = do
     return $ output pfinal ++ [ret]
 
 solB :: Input -> IO Output
-solB vec = undefined
+solB program = do
+    vals <- fmap read . lines <$> getContents
+    let p' = program { input = vals }
+    let (ret, pfinal) = runState eval p'
+    return $ output pfinal ++ [ret]
 
 
 --------------------------------------------------------------------------------
