@@ -37,9 +37,7 @@ parseInput = fmap (chunksOf 25) . chunksOf (25 * 6) . fmap (read . pure) . init
 
 solA :: Input -> Output
 solA input = let
-        countOf :: Int -> [[Int]] -> Int
         countOf x = sum . fmap (length . filter (== x))
-
     in List.minimumBy (comparing (countOf 0)) input
             & \l -> countOf 1 l * countOf 2 l
 
