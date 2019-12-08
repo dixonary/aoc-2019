@@ -22,7 +22,7 @@ import qualified Data.Vector.Mutable as MV -- from vector
 import Data.List.Split -- from split
 
 import Control.Arrow ((>>>))
-import Control.Monad.RWS.Lazy
+import Control.Monad.RWS.Lazy -- from mtl
 import Control.Monad.Loops (iterateUntil) -- from monad-loops
 
 import Debug.Trace
