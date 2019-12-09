@@ -37,11 +37,11 @@ type Memory = Map Integer Integer
 
 -- A program has an instruction pointer and a memory vector.
 data Program = Program
-    { machine :: Machine
-    , ip      :: Integer
-    , relP    :: Integer
+    { machine :: !Machine
+    , ip      :: !Integer
+    , relP    :: !Integer
     , input   :: [Integer]
-    , mem     :: Memory
+    , mem     :: !Memory
     }
 instance Show Program where show p = show (input p, mem p)
 
