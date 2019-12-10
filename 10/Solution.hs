@@ -59,6 +59,12 @@ at (RelPos dx dy) =
 dm :: RelPos -> Integer
 dm (RelPos dx dy) = dx * dx + dy * dy
 
+
+-- Relative position of b from base a.
+rel :: Position -> Position -> RelPos
+rel (xa,ya) (xb,yb) = RelPos (xb - xa) (yb - ya)
+
+
 -- Number of visible locations from the given location.
 numVis :: [Position] -> Position -> Integer
 numVis positions a
@@ -73,8 +79,6 @@ numVis positions a
 solA :: Input -> Output
 solA positions = List.maximum $ numVis positions <$> positions
 
-rel :: Position -> Position -> RelPos
-rel (xa,ya) (xb,yb) = RelPos (xb - xa) (yb - ya)
 
 -- Get the full order of destroyed positions based on given structure.
 blast :: [[Position]] -> [Position]
