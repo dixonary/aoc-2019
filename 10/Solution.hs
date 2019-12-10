@@ -77,7 +77,7 @@ rel :: Position -> Position -> RelPos
 rel (xa,ya) (xb,yb) = RelPos (xb - xa) (yb - ya)
 
 -- Get the full order of destroyed positions based on given structure.
-blast :: [[(Position, RelPos)]] -> [(Position, RelPos)]
+blast :: [[Position]] -> [Position]
 blast asteroids = let
     unconsings = List.uncons <$> asteroids
     blasted    = catMaybes $ fmap fst <$> unconsings 
@@ -85,7 +85,7 @@ blast asteroids = let
         then []
         else blasted ++ blast (maybe [] snd <$> unconsings)
 
-        
+
 solB :: Input -> Integer
 solB positions = let
         base = List.maximumBy (comparing (numVis positions)) positions
@@ -97,8 +97,9 @@ solB positions = let
                    & List.sortOn snd
                    & List.groupBy ((==) `on` snd)
                    & fmap (List.sortOn (dm . snd)) 
+                   & fmap (fmap fst)
 
-        ((x,y),_) = blast allBySweep !! 199
+        (x,y) = blast allBySweep !! 199
 
     in x * 100 + y
 
